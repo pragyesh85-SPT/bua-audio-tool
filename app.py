@@ -48,6 +48,7 @@ def download_audio(url, output_stem):
         'outtmpl': str(TEMP_DIR / f"{output_stem}.%(ext)s"),
         'quiet': True,
         'no_warnings': True,
+        'check_formats': True, # Ensure playable stream
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
@@ -58,7 +59,7 @@ def download_audio(url, output_stem):
         # Force specific clients that are less likely to be blocked
         'extractor_args': {
             'youtube': {
-                'player_client': ['android_web', 'web']
+                'player_client': ['default', '-android_sdkless']
             }
         }
     }
