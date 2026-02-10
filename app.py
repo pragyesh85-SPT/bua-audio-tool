@@ -43,20 +43,28 @@ def download_audio(url, output_stem):
     if output_path.exists():
         os.remove(output_path)
         
+    # Create temp cookie file
+    cookie_file = TEMP_DIR / f"cookies_{output_stem}.txt"
+    try:
+        if 'YOUTUBE_COOKIES' in st.secrets:
+            with open(cookie_file, 'w') as f:
+                f.write(st.secrets['YOUTUBE_COOKIES'])
+    except Exception as e:
+        st.warning(f"Could not load cookies: {e}")
+
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': str(TEMP_DIR / f"{output_stem}.%(ext)s"),
         'quiet': True,
         'no_warnings': True,
-        'check_formats': True, # Ensure playable stream
+        'check_formats': True,
+        'cookiefile': str(cookie_file) if cookie_file.exists() else None,
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }],
-        # Use a real browser User-Agent to avoid bot detection
         'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
-        # Force specific clients that are less likely to be blocked
         'extractor_args': {
             'youtube': {
                 'player_client': ['default', '-android_sdkless']
@@ -64,8 +72,16 @@ def download_audio(url, output_stem):
         }
     }
     
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+    finally:
+        # Cleanup cookie file
+        if cookie_file.exists():
+            try:
+                os.remove(cookie_file)
+            except:
+                pass
         
     # yt-dlp might produce file with .mp3 extension directly
     if output_path.exists():
