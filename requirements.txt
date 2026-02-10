@@ -1,4 +1,4 @@
 streamlit
-yt-dlp
+yt-dlp-nightly
 pydub
 audioop-lts
