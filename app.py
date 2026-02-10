@@ -46,12 +46,21 @@ def download_audio(url, output_stem):
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': str(TEMP_DIR / f"{output_stem}.%(ext)s"),
+        'quiet': True,
+        'no_warnings': True,
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }],
-        'quiet': True,
+        # Use a real browser User-Agent to avoid bot detection
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+        # Force specific clients that are less likely to be blocked
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android_web', 'web']
+            }
+        }
     }
     
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
