@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BUA Audio Tool</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --surface2: #242424;
+      --border: #2e2e2e;
+      --accent: #ff3b3b;
+      --accent2: #ff6b35;
+      --text: #f0f0f0;
+      --muted: #888;
+      --success: #2ecc71;
+      --radius: 10px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px 80px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    header h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    header p {
+      color: var(--muted);
+      margin-top: 6px;
+      font-size: 0.95rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      width: 100%;
+      max-width: 700px;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    /* URL Input */
+    .url-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    input[type="text"], input[type="url"] {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.95rem;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+
+    input[type="text"]:focus, input[type="url"]:focus {
+      border-color: var(--accent);
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 10px 18px;
+      transition: opacity 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    button:active { transform: scale(0.97); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: #fff;
+    }
+
+    .btn-icon {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 8px 10px;
+      font-size: 1rem;
+      line-height: 1;
+    }
+
+    .btn-icon:hover { color: var(--accent); border-color: var(--accent); }
+
+    /* Video preview */
+    #video-info {
+      display: none;
+      margin-top: 16px;
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 14px;
+      gap: 14px;
+      align-items: center;
+    }
+
+    #video-info.visible { display: flex; }
+
+    #video-thumb {
+      width: 100px;
+      height: 56px;
+      object-fit: cover;
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+
+    .video-meta h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+
+    .video-meta span {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 4px;
+      display: block;
+    }
+
+    /* Segments */
+    #segments-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .segment-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 2fr auto;
+      gap: 8px;
+      align-items: center;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+
+    .segment-row input[type="text"] {
+      background: var(--bg);
+    }
+
+    .time-label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-bottom: 3px;
+    }
+
+    .field-wrap { display: flex; flex-direction: column; }
+
+    .add-segment-row {
+      display: flex;
+      justify-content: flex-start;
+    }
+
+    /* Actions */
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* Status / progress */
+    #status-area {
+      display: none;
+      margin-top: 16px;
+    }
+
+    #status-area.visible { display: block; }
+
+    .status-msg {
+      font-size: 0.88rem;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: var(--surface2);
+      border-left: 3px solid var(--accent);
+      color: var(--muted);
+    }
+
+    .status-msg.error {
+      border-left-color: var(--accent);
+      color: #ff6b6b;
+    }
+
+    .status-msg.success {
+      border-left-color: var(--success);
+      color: var(--success);
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.88rem;
+      padding: 20px;
+    }
+
+    @media (max-width: 500px) {
+      .segment-row {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto;
+      }
+      .segment-row .field-wrap:nth-child(3) {
+        grid-column: 1 / 3;
+      }
+      .segment-row button {
+        grid-column: 1 / 3;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>BUA Audio Tool</h1>
+    <p>Cut &amp; merge YouTube audio for your dance events</p>
+  </header>
+
+  <!-- Step 1: URL -->
+  <div class="card">
+    <div class="card-title">Step 1 — YouTube URL</div>
+    <div class="url-row">
+      <input type="url" id="url-input" placeholder="https://www.youtube.com/watch?v=..." />
+      <button class="btn-primary" onclick="fetchInfo()">Load</button>
+    </div>
+    <div id="video-info">
+      <img id="video-thumb" src="" alt="thumbnail" />
+      <div class="video-meta">
+        <h3 id="video-title"></h3>
+        <span id="video-duration"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2: Segments -->
+  <div class="card">
+    <div class="card-title">Step 2 — Time Segments</div>
+    <div id="segments-list">
+      <div class="empty-state">No segments yet. Add one below.</div>
+    </div>
+    <div class="add-segment-row">
+      <button class="btn-secondary" onclick="addSegment()">+ Add Segment</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Generate -->
+  <div class="card">
+    <div class="card-title">Step 3 — Generate</div>
+    <div class="actions">
+      <button class="btn-primary" onclick="cutAndGenerate()">✂ Cut &amp; Generate (ZIP)</button>
+      <button class="btn-success" onclick="mergeAndGenerate()">⊕ Merge All &amp; Download</button>
+    </div>
+    <div id="status-area">
+      <div class="status-msg" id="status-msg"></div>
+    </div>
+  </div>
+
+  <script>
+    let segmentCount = 0;
+
+    function addSegment(start = '', end = '', label = '') {
+      segmentCount++;
+      const list = document.getElementById('segments-list');
+
+      // Remove empty state
+      const empty = list.querySelector('.empty-state');
+      if (empty) empty.remove();
+
+      const row = document.createElement('div');
+      row.className = 'segment-row';
+      row.dataset.id = segmentCount;
+      row.innerHTML = `
+        <div class="field-wrap">
+          <div class="time-label">Start (MM:SS)</div>
+          <input type="text" class="seg-start" placeholder="0:30" value="${start}" />
+        </div>
+        <div class="field-wrap">
+          <div class="time-label">End (MM:SS)</div>
+          <input type="text" class="seg-end" placeholder="1:00" value="${end}" />
+        </div>
+        <div class="field-wrap">
+          <div class="time-label">Label (optional)</div>
+          <input type="text" class="seg-label" placeholder="Intro beat" value="${label}" />
+        </div>
+        <button class="btn-icon" title="Remove" onclick="removeSegment(this)">✕</button>
+      `;
+      list.appendChild(row);
+    }
+
+    function removeSegment(btn) {
+      const row = btn.closest('.segment-row');
+      row.remove();
+      const list = document.getElementById('segments-list');
+      if (!list.querySelector('.segment-row')) {
+        list.innerHTML = '<div class="empty-state">No segments yet. Add one below.</div>';
+      }
+    }
+
+    function getSegments() {
+      const rows = document.querySelectorAll('.segment-row');
+      return Array.from(rows).map((row, i) => ({
+        start: row.querySelector('.seg-start').value.trim(),
+        end: row.querySelector('.seg-end').value.trim(),
+        label: row.querySelector('.seg-label').value.trim() || `segment_${i + 1}`,
+      }));
+    }
+
+    function setStatus(msg, type = 'loading') {
+      const area = document.getElementById('status-area');
+      const el = document.getElementById('status-msg');
+      area.classList.add('visible');
+      el.className = 'status-msg' + (type === 'error' ? ' error' : type === 'success' ? ' success' : '');
+      el.innerHTML = type === 'loading'
+        ? `<span class="spinner"></span>${msg}`
+        : msg;
+    }
+
+    function clearStatus() {
+      document.getElementById('status-area').classList.remove('visible');
+    }
+
+    async function fetchInfo() {
+      const url = document.getElementById('url-input').value.trim();
+      if (!url) return;
+
+      const infoBox = document.getElementById('video-info');
+      infoBox.classList.remove('visible');
+      setStatus('Fetching video info…');
+
+      try {
+        const res = await fetch('/api/info', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to fetch info.');
+
+        document.getElementById('video-thumb').src = data.thumbnail;
+        document.getElementById('video-title').textContent = data.title;
+        document.getElementById('video-duration').textContent = `Duration: ${data.duration}`;
+        infoBox.classList.add('visible');
+        clearStatus();
+      } catch (e) {
+        setStatus(e.message, 'error');
+      }
+    }
+
+    async function cutAndGenerate() {
+      const url = document.getElementById('url-input').value.trim();
+      if (!url) return setStatus('Please enter a YouTube URL first.', 'error');
+      const segments = getSegments();
+      if (!segments.length) return setStatus('Add at least one segment.', 'error');
+
+      setStatus('Downloading & cutting audio… this may take a minute.');
+      try {
+        const res = await fetch('/api/process', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, segments }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.detail || 'Processing failed.');
+        }
+        const blob = await res.blob();
+        downloadBlob(blob, 'bua_audio_cuts.zip');
+        setStatus('Done! Your ZIP is downloading.', 'success');
+      } catch (e) {
+        setStatus(e.message, 'error');
+      }
+    }
+
+    async function mergeAndGenerate() {
+      const url = document.getElementById('url-input').value.trim();
+      if (!url) return setStatus('Please enter a YouTube URL first.', 'error');
+      const segments = getSegments();
+      if (!segments.length) return setStatus('Add at least one segment.', 'error');
+
+      setStatus('Downloading, cutting &amp; merging… this may take a minute.');
+      try {
+        const res = await fetch('/api/merge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, segments }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.detail || 'Merge failed.');
+        }
+        const blob = await res.blob();
+        downloadBlob(blob, 'bua_merged.mp3');
+        setStatus('Done! Your merged MP3 is downloading.', 'success');
+      } catch (e) {
+        setStatus(e.message, 'error');
+      }
+    }
+
+    function downloadBlob(blob, filename) {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    // Allow pressing Enter on URL input
+    document.getElementById('url-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') fetchInfo();
+    });
+  </script>
+</body>
+</html>
