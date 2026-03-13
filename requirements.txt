@@ -1,4 +1,0 @@
-streamlit
-yt-dlp
-pydub
-audioop-lts
