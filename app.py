@@ -4,11 +4,17 @@ from pydub import AudioSegment
 import os
 from pathlib import Path
 import re
+import time
+
+import firebase_auth
 
 # --- Config ---
 st.set_page_config(page_title="Audio Tool", page_icon="🎵")
 TEMP_DIR = Path("temp_downloads")
 TEMP_DIR.mkdir(exist_ok=True)
+
+# Firebase Auth gate: no-op locally, required when FIREBASE_WEB_API_KEY is set.
+current_user = firebase_auth.require_login()
 
 # --- Helpers ---
 def cleanup_files(files):
@@ -43,12 +49,16 @@ def download_audio(url, output_stem):
     if output_path.exists():
         os.remove(output_path)
         
-    # Create temp cookie file
+    # Create temp cookie file (env var takes priority, e.g. on Cloud Run;
+    # falls back to Streamlit secrets for local/Streamlit Cloud runs)
     cookie_file = TEMP_DIR / f"cookies_{output_stem}.txt"
     try:
-        if 'YOUTUBE_COOKIES' in st.secrets:
+        cookies = os.environ.get('YOUTUBE_COOKIES')
+        if not cookies and 'YOUTUBE_COOKIES' in st.secrets:
+            cookies = st.secrets['YOUTUBE_COOKIES']
+        if cookies:
             with open(cookie_file, 'w') as f:
-                f.write(st.secrets['YOUTUBE_COOKIES'])
+                f.write(cookies)
     except Exception as e:
         st.warning(f"Could not load cookies: {e}")
 
@@ -110,6 +120,44 @@ def process_segment(audio_path, start_ms, end_ms, fade_in, fade_out):
         segment = segment.fade_out(3000)
         
     return segment
+
+def upload_to_storage(local_path, user_email):
+    """Uploads the processed file to Cloud Storage if OUTPUT_BUCKET is set.
+
+    Returns (gs_path, signed_url). signed_url is None when the runtime
+    service account cannot sign (needs roles/iam.serviceAccountTokenCreator
+    on itself); the file is still stored either way.
+    """
+    bucket_name = os.environ.get("OUTPUT_BUCKET")
+    if not bucket_name:
+        return None, None
+
+    from datetime import timedelta
+    from google.cloud import storage
+    import google.auth
+    from google.auth.transport import requests as ga_requests
+
+    owner = (user_email or "anonymous").replace("@", "_at_")
+    dest_name = f"outputs/{owner}/{int(time.time())}_bua_audio.mp3"
+
+    client = storage.Client()
+    blob = client.bucket(bucket_name).blob(dest_name)
+    blob.upload_from_filename(str(local_path))
+
+    signed_url = None
+    try:
+        credentials, _ = google.auth.default()
+        credentials.refresh(ga_requests.Request())
+        signed_url = blob.generate_signed_url(
+            version="v4",
+            expiration=timedelta(hours=24),
+            service_account_email=getattr(credentials, "service_account_email", None),
+            access_token=credentials.token,
+        )
+    except Exception:
+        pass
+
+    return f"gs://{bucket_name}/{dest_name}", signed_url
 
 # --- UI ---
 st.title("🎵 Bua Audio Tool")
@@ -187,7 +235,20 @@ if st.button("Process Audio"):
         
         with open(output_path, "rb") as f:
             st.download_button("Download MP3", f, file_name="bua_audio.mp3")
-            
+
+        try:
+            gs_path, signed_url = upload_to_storage(
+                output_path, current_user["email"] if current_user else None
+            )
+            if gs_path:
+                if signed_url:
+                    st.success(f"Saved to Cloud Storage: [download link (24h)]({signed_url})")
+                else:
+                    st.info(f"Saved to Cloud Storage: `{gs_path}`")
+        except Exception as e:
+            st.warning(f"Cloud Storage upload failed: {e}")
+
+
         # Cleanup is tricky in Streamlit as re-runs might need files, 
         # but for this script we can clean up source files at least
         cleanup_files([path1, TEMP_DIR/"track2.mp3"] if add_second_track and url2 else [path1])

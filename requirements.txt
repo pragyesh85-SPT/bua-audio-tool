@@ -2,3 +2,5 @@ streamlit
 yt-dlp
 pydub
 audioop-lts
+requests
+google-cloud-storage

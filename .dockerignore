@@ -1,0 +1,7 @@
+.git
+.gitignore
+README.md
+temp_downloads/
+__pycache__/
+*.pyc
+.streamlit/secrets.toml
